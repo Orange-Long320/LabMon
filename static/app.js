@@ -344,7 +344,7 @@ function renderGpuSlots(gpus, selected) {
       const rowClass = isSelected ? "is-selected" : severity === "warm" || severity === "hot" ? "is-hot" : "";
       const badgeClass = severityClass(severity);
       return `
-        <tr class="${rowClass}" data-overview-gpu-index="${escapeHtml(gpu.index)}">
+        <tr class="${rowClass}" data-select-gpu-index="${escapeHtml(gpu.index)}">
           <td class="rank-col">${escapeHtml(gpu.index)}</td>
           <td class="gpu-col">
             <strong>GPU ${escapeHtml(gpu.index)}</strong>
@@ -354,7 +354,7 @@ function renderGpuSlots(gpus, selected) {
           <td class="num-col">${clampPercent(gpu.utilization_gpu).toFixed(0)}%</td>
           <td class="num-col">${formatMib(gpu.memory_used_mib)}</td>
           <td><span class="badge ${badgeClass}">${escapeHtml(severityLabel(severity))}</span></td>
-          <td class="action-col"><button class="ghost-button" type="button" data-overview-gpu-index="${escapeHtml(gpu.index)}">${isSelected ? "selected" : "select"}</button></td>
+          <td class="action-col"><button class="ghost-button" type="button" data-select-gpu-index="${escapeHtml(gpu.index)}">${isSelected ? "selected" : "select"}</button></td>
         </tr>
       `;
     })
@@ -412,46 +412,38 @@ function renderLogSummary(log) {
 
 function renderGpuView(snapshot) {
   const gpus = snapshot.gpus || [];
-  const gpu = selectedGpu(gpus);
+  const ordered = orderedGpus(gpus);
+  const gpu = selectedOverviewGpu(ordered);
   if (!gpu) return `<section class="panel empty">没有 GPU 数据。</section>`;
   state.selectedGpuIndex = gpu.index;
   const severity = gpuSeverity(gpu);
   const log = selectedLog(snapshot.logs || []);
   return `
-    <section class="view-shell">
-      <aside class="panel sidebar">
-        <div>
-          <pre class="ascii">${escapeHtml(SMALL_ASCII)}</pre>
-          <div class="command"><code>$ labmon inspect gpu:${escapeHtml(gpu.index)}</code></div>
-          <div class="sidebar-list">
-            ${gpus.map((item) => renderGpuSidebarItem(item, gpu.index)).join("")}
-          </div>
-        </div>
-        <p class="muted">refresh ${snapshot.host.refresh_seconds || 5}s, no write actions</p>
-      </aside>
+    <section class="gpu-page">
+      <div class="command gpu-command">
+        <code>$ labmon inspect gpu:${escapeHtml(gpu.index)} --processes --logs latest</code>
+        <button class="solid-button" type="button" data-action="refresh">refresh</button>
+      </div>
 
-      <section class="detail-main">
-        <div class="detail-header">
-          <article class="panel big-card">
-            <p class="muted">selected GPU</p>
-            <h1>GPU ${escapeHtml(gpu.index)} / ${escapeHtml(gpu.name || "GPU")}</h1>
-            <div class="big-number ${severityClass(severity)}">${clampPercent(gpu.utilization_gpu).toFixed(0)}%</div>
-            <p class="muted">${escapeHtml(gpuSummarySentence(gpu))}</p>
-          </article>
-          ${renderGpuKv(gpu)}
-        </div>
+      ${renderSelectedOverviewGpu(gpu)}
 
-        <div class="detail-grid">
-          <section class="panel process-list">
-            <div class="panel-head">
-              <h2>Processes</h2>
-              <span class="badge ${severityClass(severity)}">${escapeHtml(severityLabel(severity))}</span>
-            </div>
-            ${renderProcessLines(gpu)}
-          </section>
-          ${renderDetailLog(log)}
+      <section class="panel overview-table gpu-slots-panel">
+        <div class="panel-head">
+          <h2>GPU Slots</h2>
+          <span class="muted">ordered by index</span>
         </div>
+        ${renderGpuSlots(ordered, gpu)}
       </section>
+
+      <section class="panel process-list">
+        <div class="panel-head">
+          <h2>Processes on GPU ${escapeHtml(gpu.index)}</h2>
+          <span class="badge ${severityClass(severity)}">${escapeHtml(severityLabel(severity))}</span>
+        </div>
+        ${renderProcessLines(gpu)}
+      </section>
+
+      ${renderDetailLog(log)}
     </section>
   `;
 }
@@ -602,7 +594,7 @@ function renderHostView(snapshot) {
     <section class="host-grid">
       <section class="panel">
         <div class="panel-head">
-          <h2>Host</h2>
+          <h2>Server</h2>
           <span class="muted">${escapeHtml(host.hostname)}</span>
         </div>
         <div class="host-meters">
@@ -614,7 +606,7 @@ function renderHostView(snapshot) {
       </section>
       <section class="panel">
         <div class="panel-head">
-          <h2>labmon status</h2>
+          <h2>server status</h2>
           <span class="badge">${escapeHtml(host.mode)}</span>
         </div>
         <pre class="terminal">$ labmon status
@@ -669,10 +661,10 @@ $("#app-view").addEventListener("click", (event) => {
     loadSnapshot();
     return;
   }
-  const overviewGpuButton = event.target.closest("[data-overview-gpu-index]");
-  if (overviewGpuButton) {
-    state.selectedGpuIndex = overviewGpuButton.dataset.overviewGpuIndex;
-    if (state.view === "overview") renderActiveView();
+  const selectGpuButton = event.target.closest("[data-select-gpu-index]");
+  if (selectGpuButton) {
+    state.selectedGpuIndex = selectGpuButton.dataset.selectGpuIndex;
+    renderActiveView();
     return;
   }
   const gpuButton = event.target.closest("[data-gpu-index]");

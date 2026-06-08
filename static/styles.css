@@ -429,11 +429,11 @@ tr.is-recommended {
   background: var(--green-soft);
 }
 
-tr[data-overview-gpu-index] {
+tr[data-select-gpu-index] {
   cursor: pointer;
 }
 
-tr[data-overview-gpu-index]:hover {
+tr[data-select-gpu-index]:hover {
   background: var(--paper);
 }
 
@@ -558,6 +558,19 @@ tr.is-hot {
 
 .terminal.is-compact {
   max-height: 260px;
+}
+
+.gpu-page {
+  display: grid;
+  gap: 20px;
+}
+
+.gpu-command {
+  margin-top: 0;
+}
+
+.gpu-slots-panel {
+  min-height: 0;
 }
 
 .view-shell {
