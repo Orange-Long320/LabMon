@@ -29,3 +29,23 @@ def test_log_endpoint_reads_only_indexed_logs(monkeypatch):
     assert ok.status_code == 200
     assert len(ok.json()["lines"]) <= 5
     assert missing.status_code == 404
+
+
+def test_history_endpoint_returns_server_side_samples(monkeypatch):
+    monkeypatch.setenv("LABMON_DEMO", "1")
+
+    from labmon.history import recorder
+
+    recorder.stop()
+    with recorder._lock:
+        recorder._samples.clear()
+
+    client = TestClient(app)
+    response = client.get("/api/history?seconds=120")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["window_seconds"] == 120
+    assert payload["samples"]
+    assert len(payload["samples"][-1]["gpus"]) == 4
+    assert "cpu_percent" in payload["samples"][-1]["host"]

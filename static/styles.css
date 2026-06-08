@@ -812,6 +812,202 @@ tr.is-hot {
   font-size: 0.94rem;
 }
 
+.trends-page {
+  display: grid;
+  gap: 20px;
+}
+
+.trends-command {
+  margin-top: 0;
+}
+
+.trend-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.trend-status-item {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border-left: 1px solid var(--faint);
+}
+
+.trend-status-item:first-child {
+  border-left: 0;
+}
+
+.trend-status-item span,
+.trend-status-item p {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.trend-status-item strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.trend-panel {
+  overflow: hidden;
+}
+
+.trend-chart {
+  padding: 12px 14px 4px;
+}
+
+.trend-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart-frame {
+  fill: var(--paper);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-grid-line {
+  stroke: var(--faint);
+  stroke-width: 1;
+}
+
+.chart-axis-label,
+.chart-time-label {
+  fill: var(--muted);
+  font-size: 13px;
+}
+
+.trend-series {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-dot {
+  stroke: var(--bg);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-0 {
+  stroke: var(--ink);
+  background: var(--ink);
+}
+
+.series-1 {
+  stroke: var(--blue);
+  background: var(--blue);
+}
+
+.series-2 {
+  stroke: var(--green);
+  background: var(--green);
+}
+
+.series-3 {
+  stroke: var(--amber);
+  background: var(--amber);
+}
+
+.series-4,
+.series-host {
+  stroke: var(--red);
+  background: var(--red);
+}
+
+.series-memory {
+  stroke: var(--blue);
+  background: var(--blue);
+}
+
+.trend-dot.series-0 {
+  fill: var(--ink);
+}
+
+.trend-dot.series-1 {
+  fill: var(--blue);
+}
+
+.trend-dot.series-2 {
+  fill: var(--green);
+}
+
+.trend-dot.series-3 {
+  fill: var(--amber);
+}
+
+.trend-dot.series-4,
+.trend-dot.series-host {
+  fill: var(--red);
+}
+
+.trend-dot.series-memory {
+  fill: var(--blue);
+}
+
+.trend-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--faint);
+}
+
+.legend-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 12px;
+  border-right: 1px solid var(--faint);
+  border-bottom: 1px solid var(--faint);
+  font-size: 0.80rem;
+}
+
+.legend-item:nth-child(2n) {
+  border-right: 0;
+}
+
+.legend-item:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.legend-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-item span:last-child {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .empty {
   padding: 16px;
   color: var(--muted);
@@ -874,7 +1070,8 @@ tr.is-hot {
   .overview-layout,
   .view-shell,
   .logs-layout,
-  .host-grid {
+  .host-grid,
+  .trend-grid {
     grid-template-columns: 1fr;
   }
 
@@ -917,6 +1114,18 @@ tr.is-hot {
 
   .summary-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-status-item:nth-child(2n + 1) {
+    border-left: 0;
+  }
+
+  .trend-status-item:nth-child(n + 3) {
+    border-top: 1px solid var(--faint);
   }
 }
 
@@ -1028,6 +1237,32 @@ tr.is-hot {
 
   .process-line {
     grid-template-columns: 1fr;
+  }
+
+  .trend-status,
+  .trend-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-status-item,
+  .trend-status-item:nth-child(n + 3) {
+    border-top: 1px solid var(--faint);
+    border-left: 0;
+  }
+
+  .trend-status-item:first-child {
+    border-top: 0;
+  }
+
+  .legend-item,
+  .legend-item:nth-child(2n),
+  .legend-item:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--faint);
+  }
+
+  .legend-item:last-child {
+    border-bottom: 0;
   }
 }
 

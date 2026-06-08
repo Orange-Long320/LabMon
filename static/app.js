@@ -2,6 +2,8 @@ const state = {
   snapshot: null,
   refreshTimer: null,
   loading: false,
+  history: null,
+  historyLoading: false,
   view: "overview",
   selectedGpuIndex: null,
   selectedLogId: null,
@@ -9,6 +11,8 @@ const state = {
 };
 
 const $ = (selector) => document.querySelector(selector);
+const TREND_WINDOW_SECONDS = 600;
+const MAX_CHART_POINTS = 180;
 const APP_ASCII = String.raw`██╗      █████╗ ██████╗ ███╗   ███╗ ██████╗ ███╗   ██╗
 ██║     ██╔══██╗██╔══██╗████╗ ████║██╔═══██╗████╗  ██║
 ██║     ███████║██████╔╝██╔████╔██║██║   ██║██╔██╗ ██║
@@ -186,6 +190,7 @@ async function loadSnapshot() {
   try {
     state.snapshot = await fetchJson("/api/snapshot");
     renderSnapshot(state.snapshot);
+    if (state.view === "trends") loadHistory();
     scheduleRefresh(state.snapshot.host?.refresh_seconds || 1);
   } catch (error) {
     if (error.status === 401) {
@@ -195,6 +200,23 @@ async function loadSnapshot() {
     renderWarnings([error.message]);
   } finally {
     state.loading = false;
+  }
+}
+
+async function loadHistory() {
+  if (state.historyLoading) return;
+  state.historyLoading = true;
+  try {
+    state.history = await fetchJson(`/api/history?seconds=${TREND_WINDOW_SECONDS}`);
+    if (state.view === "trends") renderActiveView();
+  } catch (error) {
+    if (error.status === 401) {
+      redirectToLogin();
+      return;
+    }
+    renderWarnings([error.message]);
+  } finally {
+    state.historyLoading = false;
   }
 }
 
@@ -245,6 +267,7 @@ function setView(view) {
   state.view = view;
   renderActiveNav();
   if (state.snapshot) renderActiveView();
+  if (view === "trends") loadHistory();
 }
 
 function selectGpu(index) {
@@ -289,6 +312,7 @@ function renderActiveView() {
   const renderers = {
     overview: renderOverview,
     gpu: renderGpuView,
+    trends: renderTrendsView,
     logs: renderLogsView,
     host: renderHostView,
   };
@@ -561,6 +585,233 @@ ${escapeHtml(log.last_line || "没有内容")}
 $ parsed
 ${renderProgressText(log.progress || {})}</pre>
     </section>
+  `;
+}
+
+function formatWindow(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  const minutes = Math.round(value / 60);
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest ? `${hours}h ${rest}m` : `${hours}h`;
+  }
+  return `${minutes}m`;
+}
+
+function formatChartTime(timestampSeconds) {
+  if (!timestampSeconds) return "--:--";
+  return new Date(timestampSeconds * 1000).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function numericValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function downsampleSamples(samples, maxPoints) {
+  if (samples.length <= maxPoints) return samples;
+  const result = [];
+  const step = (samples.length - 1) / (maxPoints - 1);
+  for (let index = 0; index < maxPoints; index += 1) {
+    result.push(samples[Math.round(index * step)]);
+  }
+  return result;
+}
+
+function latestFinite(values) {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = numericValue(values[index]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function historyGpuIndexes(samples, gpus) {
+  const currentIndexes = orderedGpus(gpus).map((gpu) => String(gpu.index));
+  if (currentIndexes.length) return currentIndexes;
+  const discovered = new Set();
+  samples.forEach((sample) => {
+    (sample.gpus || []).forEach((gpu) => discovered.add(String(gpu.index)));
+  });
+  return [...discovered].sort((left, right) => Number(left) - Number(right));
+}
+
+function latestGpuSample(samples, gpuIndex) {
+  for (let sampleIndex = samples.length - 1; sampleIndex >= 0; sampleIndex -= 1) {
+    const found = (samples[sampleIndex].gpus || []).find((gpu) => String(gpu.index) === String(gpuIndex));
+    if (found) return found;
+  }
+  return null;
+}
+
+function buildGpuTrendSeries(samples, gpus, metric) {
+  return historyGpuIndexes(samples, gpus).map((gpuIndex, seriesIndex) => {
+    const values = samples.map((sample) => {
+      const gpu = (sample.gpus || []).find((item) => String(item.index) === String(gpuIndex));
+      return gpu ? numericValue(gpu[metric]) : null;
+    });
+    const latest = latestGpuSample(samples, gpuIndex);
+    const latestLabel =
+      metric === "memory_percent" && latest
+        ? `${formatMib(latest.memory_used_mib)} / ${formatMib(latest.memory_total_mib)}`
+        : `${Math.round(latestFinite(values) || 0)}%`;
+    return {
+      label: `GPU ${gpuIndex}`,
+      values,
+      latest: latestLabel,
+      className: `series-${seriesIndex % 5}`,
+    };
+  });
+}
+
+function buildHostTrendSeries(samples, metric, label, className) {
+  const values = samples.map((sample) => numericValue(sample.host?.[metric]));
+  return [
+    {
+      label,
+      values,
+      latest: `${Math.round(latestFinite(values) || 0)}%`,
+      className,
+    },
+  ];
+}
+
+function renderTrendsView(snapshot) {
+  const history = state.history;
+  const rawSamples = history?.samples || [];
+  const samples = downsampleSamples(rawSamples, MAX_CHART_POINTS);
+  const gpus = orderedGpus(snapshot.gpus || []);
+  const windowLabel = formatWindow(history?.window_seconds || TREND_WINDOW_SECONDS);
+  const latestAt = rawSamples.length ? formatChartTime(rawSamples[rawSamples.length - 1].generated_at) : "waiting";
+  return `
+    <section class="trends-page">
+      <div class="command trends-command">
+        <code>$ labmon trends --window ${escapeHtml(windowLabel)} --source server-history</code>
+        <button class="solid-button" type="button" data-action="refresh">refresh</button>
+      </div>
+
+      <section class="panel trend-status">
+        <div class="trend-status-item">
+          <span>buffer</span>
+          <strong>${escapeHtml(history ? "server" : "loading")}</strong>
+          <p>page can close</p>
+        </div>
+        <div class="trend-status-item">
+          <span>window</span>
+          <strong>${escapeHtml(windowLabel)}</strong>
+          <p>visible range</p>
+        </div>
+        <div class="trend-status-item">
+          <span>samples</span>
+          <strong>${rawSamples.length}</strong>
+          <p>${escapeHtml(history ? `${history.interval_seconds}s interval` : "fetching")}</p>
+        </div>
+        <div class="trend-status-item">
+          <span>latest</span>
+          <strong>${escapeHtml(latestAt)}</strong>
+          <p>server time</p>
+        </div>
+      </section>
+
+      <section class="trend-grid">
+        ${renderTrendPanel("GPU utilization", "all cards, percent", buildGpuTrendSeries(samples, gpus, "utilization_gpu"), samples)}
+        ${renderTrendPanel("GPU memory", "all cards, percent", buildGpuTrendSeries(samples, gpus, "memory_percent"), samples)}
+        ${renderTrendPanel("CPU utilization", "host percent", buildHostTrendSeries(samples, "cpu_percent", "CPU", "series-host"), samples)}
+        ${renderTrendPanel("Memory usage", "host percent", buildHostTrendSeries(samples, "memory_percent", "RAM", "series-memory"), samples)}
+      </section>
+    </section>
+  `;
+}
+
+function renderTrendPanel(title, subtitle, series, samples) {
+  const hasData = samples.length > 0 && series.some((item) => item.values.some((value) => numericValue(value) !== null));
+  return `
+    <section class="panel trend-panel">
+      <div class="panel-head">
+        <h2>${escapeHtml(title)}</h2>
+        <span class="muted">${escapeHtml(subtitle)}</span>
+      </div>
+      ${
+        hasData
+          ? `
+            <div class="trend-chart">${renderLineChart(title, series, samples)}</div>
+            <div class="trend-legend">${series.map(renderLegendItem).join("")}</div>
+          `
+          : `<div class="empty">正在等待后端历史采样。</div>`
+      }
+    </section>
+  `;
+}
+
+function renderLegendItem(series) {
+  return `
+    <div class="legend-item">
+      <span class="legend-swatch ${escapeHtml(series.className)}"></span>
+      <strong>${escapeHtml(series.label)}</strong>
+      <span>${escapeHtml(series.latest)}</span>
+    </div>
+  `;
+}
+
+function renderLineChart(title, series, samples) {
+  const width = 760;
+  const height = 230;
+  const padding = { top: 18, right: 18, bottom: 34, left: 42 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const xFor = (index) => padding.left + (samples.length <= 1 ? plotWidth : (index / (samples.length - 1)) * plotWidth);
+  const yFor = (value) => padding.top + (1 - clampPercent(value) / 100) * plotHeight;
+  const ticks = [0, 50, 100]
+    .map((tick) => {
+      const y = yFor(tick);
+      return `
+        <line class="chart-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+        <text class="chart-axis-label" x="${padding.left - 10}" y="${y + 4}" text-anchor="end">${tick}</text>
+      `;
+    })
+    .join("");
+  const paths = series
+    .map((item) => {
+      let hasPoint = false;
+      const d = item.values
+        .map((rawValue, index) => {
+          const value = numericValue(rawValue);
+          if (value === null) return null;
+          const command = hasPoint ? "L" : "M";
+          hasPoint = true;
+          return `${command} ${xFor(index).toFixed(1)} ${yFor(value).toFixed(1)}`;
+        })
+        .filter(Boolean)
+        .join(" ");
+      return d ? `<path class="trend-series ${escapeHtml(item.className)}" d="${d}"></path>` : "";
+    })
+    .join("");
+  const dots = series
+    .map((item) => {
+      for (let index = item.values.length - 1; index >= 0; index -= 1) {
+        const value = numericValue(item.values[index]);
+        if (value !== null) {
+          return `<circle class="trend-dot ${escapeHtml(item.className)}" cx="${xFor(index).toFixed(1)}" cy="${yFor(value).toFixed(1)}" r="4"></circle>`;
+        }
+      }
+      return "";
+    })
+    .join("");
+  const startTime = formatChartTime(samples[0]?.generated_at);
+  const endTime = formatChartTime(samples[samples.length - 1]?.generated_at);
+  return `
+    <svg class="trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)} trend chart">
+      <rect class="chart-frame" x="${padding.left}" y="${padding.top}" width="${plotWidth}" height="${plotHeight}"></rect>
+      ${ticks}
+      ${paths}
+      ${dots}
+      <text class="chart-time-label" x="${padding.left}" y="${height - 9}">${escapeHtml(startTime)}</text>
+      <text class="chart-time-label" x="${width - padding.right}" y="${height - 9}" text-anchor="end">${escapeHtml(endTime)}</text>
+    </svg>
   `;
 }
 

@@ -11,6 +11,7 @@ LabMon is a lightweight, read-only web dashboard for shared GPU servers in resea
 - Physical GPU order: cards are shown as GPU `0`, `1`, `2`, `3`, matching `nvidia-smi`.
 - Per-GPU status: utilization, memory, temperature, power, owner, command line, process count, and start time.
 - Host status: CPU, memory, disk, load average, free GPU count, and collector warnings.
+- Server-side trends: records recent GPU, CPU, and memory history even when no browser page is open.
 - Training progress: scans configured log directories and extracts common fields such as `step`, `epoch`, `loss`, `reward`, `lr`, and `eta`.
 - Built-in authentication: local users, PBKDF2 password hashes, signed HttpOnly sessions, and protected API/static routes.
 - Read-only by design: no process killing, no scheduling, and no writes to users' experiment directories.
@@ -82,6 +83,8 @@ Each user gets an independent account. Passwords are stored as PBKDF2 hashes in 
 | `LABMON_LOG_ROOTS` | demo sample logs | Comma-separated directories or glob patterns to scan for logs. |
 | `LABMON_HOST_LABEL` | system hostname | Overrides the host label shown in the header. |
 | `LABMON_REFRESH_SECONDS` | `1` | Dashboard polling interval in seconds. |
+| `LABMON_HISTORY_SECONDS` | `3600` | Server-side metric history retention in seconds. |
+| `LABMON_HISTORY_INTERVAL_SECONDS` | `1` | Server-side metric sampling interval in seconds. |
 | `LABMON_AUTH` | unset | Set to `1` to require login. |
 | `LABMON_AUTH_SECRET` | unset | Required in auth mode; use `openssl rand -hex 32`. |
 | `LABMON_USERS_FILE` | `./labmon-users.json` | Local user database path. |
@@ -91,6 +94,7 @@ Each user gets an independent account. Passwords are stored as PBKDF2 hashes in 
 ## API
 
 - `GET /api/snapshot`: complete dashboard snapshot with host, GPU, process, log, and warning data.
+- `GET /api/history?seconds=600`: server-side metric history for GPU utilization, GPU memory, CPU, and RAM.
 - `GET /api/logs/{log_id}?lines=200`: tail a discovered log file by whitelist ID.
 - `GET /api/me`: current authenticated user when auth is enabled.
 - `POST /api/login`: create a session.

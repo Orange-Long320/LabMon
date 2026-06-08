@@ -25,3 +25,13 @@ def test_refresh_seconds_has_lower_bound(monkeypatch):
     settings = get_settings()
 
     assert settings.refresh_seconds == pytest.approx(0.25)
+
+
+def test_history_settings_have_bounds(monkeypatch):
+    monkeypatch.setenv("LABMON_HISTORY_SECONDS", "10")
+    monkeypatch.setenv("LABMON_HISTORY_INTERVAL_SECONDS", "0.1")
+
+    settings = get_settings()
+
+    assert settings.history_seconds == pytest.approx(60)
+    assert settings.history_interval_seconds == pytest.approx(0.5)

@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
 
@@ -16,12 +17,23 @@ from .auth import (
 )
 from .collectors import collect_snapshot
 from .config import PROJECT_ROOT, get_settings
+from .history import read_history, start_history_recorder, stop_history_recorder
 from .logs import read_indexed_log
 
 
 STATIC_DIR = PROJECT_ROOT / "static"
 
-app = FastAPI(title="LabMon", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app):
+    start_history_recorder(get_settings())
+    try:
+        yield
+    finally:
+        stop_history_recorder()
+
+
+app = FastAPI(title="LabMon", version="0.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -124,6 +136,12 @@ def me(request: Request):
 @app.get("/api/snapshot")
 def snapshot():
     return collect_snapshot(get_settings())
+
+
+@app.get("/api/history")
+def history(seconds: int = Query(default=600, ge=30, le=86400)):
+    settings = get_settings()
+    return read_history(settings, seconds=seconds)
 
 
 @app.get("/api/logs/{log_id}")
