@@ -1,17 +1,26 @@
 [Unit]
 Description=LabMon GPU monitor
-After=network.target
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/labmon
 Environment=LABMON_LOG_ROOTS=/home/*/runs,/home/*/logs,/data/runs,/data/logs
+Environment=LABMON_HISTORY_SECONDS=3600
+Environment=LABMON_HISTORY_INTERVAL_SECONDS=1
 Environment=LABMON_AUTH=1
 Environment=LABMON_USERS_FILE=/opt/labmon/labmon-users.json
 Environment=LABMON_AUTH_SECRET=change-this-with-openssl-rand-hex-32
 ExecStart=/opt/labmon/.venv/bin/uvicorn labmon.app:app --host 0.0.0.0 --port 8765
-Restart=on-failure
-RestartSec=3
+Restart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=labmon
 
 [Install]
 WantedBy=multi-user.target

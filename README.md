@@ -61,7 +61,24 @@ LABMON_AUTH_SECRET="$(openssl rand -hex 32)" \
 uv run uvicorn labmon.app:app --host 0.0.0.0 --port 8765
 ```
 
-The included `deploy/labmon.service` is a systemd template. Edit `WorkingDirectory`, `LABMON_USERS_FILE`, `LABMON_AUTH_SECRET`, and `ExecStart` for your server path before installing it.
+The command above is useful for temporary debugging. For long-running deployment, use `systemd` instead of running `uvicorn` in the foreground over SSH.
+
+The included `deploy/labmon.service` is a systemd template. Edit `WorkingDirectory`, `LABMON_USERS_FILE`, `LABMON_AUTH_SECRET`, and `ExecStart` for your server path, then install it:
+
+```bash
+sudo cp deploy/labmon.service /etc/systemd/system/labmon.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now labmon
+sudo systemctl status labmon
+```
+
+Follow logs:
+
+```bash
+sudo journalctl -u labmon -f
+```
+
+`systemd` detaches LabMon from your SSH session, starts it after reboot, and restarts it if the process exits unexpectedly. It cannot prevent an administrator from stopping the service, a power loss, or a root-level forced kill, but it does solve SSH disconnects killing the server process.
 
 If the port may be reachable outside your trusted network, bind LabMon to `127.0.0.1` and access it through an SSH tunnel, a VPN, or a reverse proxy with HTTPS. When serving over HTTPS, set `LABMON_AUTH_COOKIE_SECURE=1`.
 

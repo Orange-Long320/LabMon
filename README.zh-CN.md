@@ -61,7 +61,24 @@ LABMON_AUTH_SECRET="$(openssl rand -hex 32)" \
 uv run uvicorn labmon.app:app --host 0.0.0.0 --port 8765
 ```
 
-仓库里的 `deploy/labmon.service` 是 systemd 模板。安装前需要把 `WorkingDirectory`、`LABMON_USERS_FILE`、`LABMON_AUTH_SECRET` 和 `ExecStart` 改成服务器上的实际路径。
+上面的命令适合临时调试，不适合长期运行。生产部署建议交给 `systemd`，不要在 SSH 前台直接跑 `uvicorn`。
+
+仓库里的 `deploy/labmon.service` 是 systemd 模板。安装前需要把 `WorkingDirectory`、`LABMON_USERS_FILE`、`LABMON_AUTH_SECRET` 和 `ExecStart` 改成服务器上的实际路径，然后执行：
+
+```bash
+sudo cp deploy/labmon.service /etc/systemd/system/labmon.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now labmon
+sudo systemctl status labmon
+```
+
+查看日志：
+
+```bash
+sudo journalctl -u labmon -f
+```
+
+`systemd` 会让 LabMon 脱离 SSH 会话运行，服务器重启后自动启动，进程异常退出后自动重启。它不能阻止管理员手动停止服务、服务器断电或 root 用户强制 kill，但能解决 SSH 断开导致服务退出的问题。
 
 如果端口可能被可信网络之外访问，建议绑定到 `127.0.0.1`，再通过 SSH tunnel、VPN 或带 HTTPS 的反向代理访问。通过 HTTPS 访问时，设置 `LABMON_AUTH_COOKIE_SECURE=1`。
 
