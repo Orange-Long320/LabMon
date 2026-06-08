@@ -118,6 +118,10 @@ function sortedGpus(gpus) {
   return [...gpus].sort(compareGpuForPicking);
 }
 
+function orderedGpus(gpus) {
+  return [...gpus].sort((left, right) => Number(left.index) - Number(right.index));
+}
+
 function selectedGpu(gpus) {
   if (!gpus.length) return null;
   if (state.selectedGpuIndex !== null) {
@@ -125,6 +129,15 @@ function selectedGpu(gpus) {
     if (found) return found;
   }
   return sortedGpus(gpus)[0];
+}
+
+function selectedOverviewGpu(gpus) {
+  if (!gpus.length) return null;
+  if (state.selectedGpuIndex !== null) {
+    const found = gpus.find((gpu) => String(gpu.index) === String(state.selectedGpuIndex));
+    if (found) return found;
+  }
+  return orderedGpus(gpus)[0];
 }
 
 function selectedLog(logs) {
@@ -240,62 +253,61 @@ function renderActiveView() {
 
 function renderOverview(snapshot) {
   const gpus = snapshot.gpus || [];
-  const logs = snapshot.logs || [];
-  const leaderboard = sortedGpus(gpus);
-  const recommended = leaderboard[0];
-  const freeCount = gpus.filter((gpu) => gpuSeverity(gpu) === "free").length;
-  const latestLog = logs[0];
+  const ordered = orderedGpus(gpus);
+  const selected = selectedOverviewGpu(ordered);
+  if (selected) state.selectedGpuIndex = selected.index;
 
   return `
     <section class="hero-grid overview-hero">
       <div>
         <pre class="ascii">${escapeHtml(APP_ASCII)}</pre>
-        <p class="tagline">共享 GPU 服务器的白色命令行面板。首页只回答选卡问题，进程、日志和主机资源放到菜单里看。</p>
+        <p class="tagline">共享 GPU 服务器的白色命令行面板。首页按物理 GPU 顺序显示，点哪张卡，上方就查看哪张卡。</p>
         <div class="command">
-          <code>$ labmon watch --gpus 0,1,2,3 --logs latest</code>
+          <code>$ labmon watch --slots ordered --select gpu:${selected ? escapeHtml(selected.index) : "0"}</code>
           <button class="solid-button" type="button" data-action="refresh">refresh</button>
         </div>
       </div>
     </section>
 
-    ${renderOverviewSummary(snapshot.host, recommended, freeCount, gpus.length, latestLog)}
+    ${renderSelectedOverviewGpu(selected)}
 
     <section class="panel overview-table">
       <div class="panel-head">
-        <h2>GPU Leaderboard</h2>
-        <span class="muted">Search gpus... /</span>
+        <h2>GPU Slots</h2>
+        <span class="muted">ordered by index</span>
       </div>
-      ${renderGpuLeaderboard(leaderboard, recommended)}
+      ${renderGpuSlots(ordered, selected)}
     </section>
   `;
 }
 
-function renderOverviewSummary(host, recommended, freeCount, gpuCount, latestLog) {
-  const recommendedSeverity = recommended ? gpuSeverity(recommended) : "busy";
-  const activeCount = gpuCount - freeCount;
-  const logProgress = latestLog?.progress || {};
+function renderSelectedOverviewGpu(gpu) {
+  if (!gpu) {
+    return `<section class="panel empty">没有 GPU 数据。</section>`;
+  }
+  const severity = gpuSeverity(gpu);
+  const processCount = (gpu.processes || []).length;
   return `
-    <section class="summary-strip" aria-label="监控摘要">
-      <article class="panel summary-card">
-        <span>pick</span>
-        <strong>${recommended ? `GPU ${escapeHtml(recommended.index)}` : "-"}</strong>
-        <p>${recommended ? escapeHtml(severityLabel(recommendedSeverity)) : "no data"}</p>
-      </article>
-      <article class="panel summary-card">
-        <span>free gpu</span>
-        <strong>${freeCount} / ${gpuCount}</strong>
-        <p>${activeCount} active</p>
-      </article>
-      <article class="panel summary-card">
-        <span>host</span>
-        <strong>${Math.round(host.cpu_percent || 0)}% CPU</strong>
-        <p>${host.memory.used_gib} / ${host.memory.total_gib} GiB memory</p>
-      </article>
-      <article class="panel summary-card">
-        <span>latest log</span>
-        <strong class="truncate">${latestLog ? escapeHtml(latestLog.name) : "-"}</strong>
-        <p>${latestLog ? escapeHtml(logProgress.step ? `step ${logProgress.step}` : logProgress.loss ? `loss ${logProgress.loss}` : "recent") : "no logs"}</p>
-      </article>
+    <section class="panel selected-gpu-panel">
+      <div class="panel-head">
+        <h2>Selected GPU</h2>
+        <span class="badge ${severityClass(severity)}">${escapeHtml(severityLabel(severity))}</span>
+      </div>
+      <div class="selected-gpu-body">
+        <div class="selected-gpu-main">
+          <span class="muted">gpu:${escapeHtml(gpu.index)}</span>
+          <strong>GPU ${escapeHtml(gpu.index)} / ${escapeHtml(gpu.name || "GPU")}</strong>
+          <p class="truncate" title="${escapeHtml(gpuPrimaryTask(gpu))}">${escapeHtml(gpuPrimaryTask(gpu))}</p>
+        </div>
+        <div class="selected-metrics">
+          <div><span>owner</span><strong>${escapeHtml(gpuOwners(gpu))}</strong></div>
+          <div><span>util</span><strong>${clampPercent(gpu.utilization_gpu).toFixed(0)}%</strong></div>
+          <div><span>memory</span><strong>${formatMib(gpu.memory_used_mib)} / ${formatMib(gpu.memory_total_mib)}</strong></div>
+          <div><span>temp</span><strong>${gpu.temperature_c ?? "unknown"} C</strong></div>
+          <div><span>power</span><strong>${gpu.power_draw_w == null ? "unknown" : `${Math.round(gpu.power_draw_w)} W`}</strong></div>
+          <div><span>processes</span><strong>${processCount}</strong></div>
+        </div>
+      </div>
     </section>
   `;
 }
@@ -322,20 +334,19 @@ function statLine(label, percent, value, tone = "") {
   `;
 }
 
-function renderGpuLeaderboard(gpus, recommended) {
+function renderGpuSlots(gpus, selected) {
   if (!gpus.length) {
     return `<div class="empty">没有读取到 GPU。demo 模式请设置 LABMON_DEMO=1，服务器模式请检查 nvidia-smi。</div>`;
   }
   const rows = gpus
-    .map((gpu, index) => {
+    .map((gpu) => {
       const severity = gpuSeverity(gpu);
-      const isRecommended = recommended && gpu.index === recommended.index;
-      const rowClass = isRecommended ? "is-recommended" : severity === "warm" || severity === "hot" ? "is-hot" : "";
-      const badgeClass = isRecommended ? "green" : severityClass(severity);
-      const status = isRecommended ? "pick" : severityLabel(severity);
+      const isSelected = selected && String(gpu.index) === String(selected.index);
+      const rowClass = isSelected ? "is-selected" : severity === "warm" || severity === "hot" ? "is-hot" : "";
+      const badgeClass = severityClass(severity);
       return `
-        <tr class="${rowClass}">
-          <td class="rank-col">${index + 1}</td>
+        <tr class="${rowClass}" data-overview-gpu-index="${escapeHtml(gpu.index)}">
+          <td class="rank-col">${escapeHtml(gpu.index)}</td>
           <td class="gpu-col">
             <strong>GPU ${escapeHtml(gpu.index)}</strong>
             <div class="task" title="${escapeHtml(gpuPrimaryTask(gpu))}">${escapeHtml(gpuPrimaryTask(gpu))}</div>
@@ -343,8 +354,8 @@ function renderGpuLeaderboard(gpus, recommended) {
           <td class="owner-col">${escapeHtml(gpuOwners(gpu))}</td>
           <td class="num-col">${clampPercent(gpu.utilization_gpu).toFixed(0)}%</td>
           <td class="num-col">${formatMib(gpu.memory_used_mib)}</td>
-          <td><span class="badge ${badgeClass}">${escapeHtml(status)}</span></td>
-          <td class="action-col"><button class="ghost-button" type="button" data-gpu-index="${escapeHtml(gpu.index)}">inspect</button></td>
+          <td><span class="badge ${badgeClass}">${escapeHtml(severityLabel(severity))}</span></td>
+          <td class="action-col"><button class="ghost-button" type="button" data-overview-gpu-index="${escapeHtml(gpu.index)}">${isSelected ? "selected" : "select"}</button></td>
         </tr>
       `;
     })
@@ -354,7 +365,7 @@ function renderGpuLeaderboard(gpus, recommended) {
       <table>
         <thead>
           <tr>
-            <th class="rank-col">#</th>
+            <th class="rank-col">Slot</th>
             <th class="gpu-col">GPU</th>
             <th class="owner-col">Owner</th>
             <th class="num-col">Util</th>
@@ -657,6 +668,12 @@ $("#app-view").addEventListener("click", (event) => {
   const refresh = event.target.closest("[data-action='refresh']");
   if (refresh) {
     loadSnapshot();
+    return;
+  }
+  const overviewGpuButton = event.target.closest("[data-overview-gpu-index]");
+  if (overviewGpuButton) {
+    state.selectedGpuIndex = overviewGpuButton.dataset.overviewGpuIndex;
+    if (state.view === "overview") renderActiveView();
     return;
   }
   const gpuButton = event.target.closest("[data-gpu-index]");
