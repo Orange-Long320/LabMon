@@ -247,7 +247,7 @@ function renderOverview(snapshot) {
   const latestLog = logs[0];
 
   return `
-    <section class="hero-grid">
+    <section class="hero-grid overview-hero">
       <div>
         <pre class="ascii">${escapeHtml(APP_ASCII)}</pre>
         <p class="tagline">共享 GPU 服务器的白色命令行面板。首页只回答选卡问题，进程、日志和主机资源放到菜单里看。</p>
@@ -256,22 +256,46 @@ function renderOverview(snapshot) {
           <button class="solid-button" type="button" data-action="refresh">refresh</button>
         </div>
       </div>
-      ${renderHostSummary(snapshot.host, freeCount, gpus.length)}
     </section>
 
-    <section class="overview-layout">
-      <section class="panel">
-        <div class="panel-head">
-          <h2>GPU Leaderboard</h2>
-          <span class="muted">Search gpus... /</span>
-        </div>
-        ${renderGpuLeaderboard(leaderboard, recommended)}
-      </section>
+    ${renderOverviewSummary(snapshot.host, recommended, freeCount, gpus.length, latestLog)}
 
-      <aside class="side-stack">
-        ${renderRecommendation(recommended)}
-        ${renderLogSummary(latestLog)}
-      </aside>
+    <section class="panel overview-table">
+      <div class="panel-head">
+        <h2>GPU Leaderboard</h2>
+        <span class="muted">Search gpus... /</span>
+      </div>
+      ${renderGpuLeaderboard(leaderboard, recommended)}
+    </section>
+  `;
+}
+
+function renderOverviewSummary(host, recommended, freeCount, gpuCount, latestLog) {
+  const recommendedSeverity = recommended ? gpuSeverity(recommended) : "busy";
+  const activeCount = gpuCount - freeCount;
+  const logProgress = latestLog?.progress || {};
+  return `
+    <section class="summary-strip" aria-label="监控摘要">
+      <article class="panel summary-card">
+        <span>pick</span>
+        <strong>${recommended ? `GPU ${escapeHtml(recommended.index)}` : "-"}</strong>
+        <p>${recommended ? escapeHtml(severityLabel(recommendedSeverity)) : "no data"}</p>
+      </article>
+      <article class="panel summary-card">
+        <span>free gpu</span>
+        <strong>${freeCount} / ${gpuCount}</strong>
+        <p>${activeCount} active</p>
+      </article>
+      <article class="panel summary-card">
+        <span>host</span>
+        <strong>${Math.round(host.cpu_percent || 0)}% CPU</strong>
+        <p>${host.memory.used_gib} / ${host.memory.total_gib} GiB memory</p>
+      </article>
+      <article class="panel summary-card">
+        <span>latest log</span>
+        <strong class="truncate">${latestLog ? escapeHtml(latestLog.name) : "-"}</strong>
+        <p>${latestLog ? escapeHtml(logProgress.step ? `step ${logProgress.step}` : logProgress.loss ? `loss ${logProgress.loss}` : "recent") : "no logs"}</p>
+      </article>
     </section>
   `;
 }
