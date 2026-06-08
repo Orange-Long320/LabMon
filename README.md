@@ -1,5 +1,7 @@
 # LabMon
 
+[简体中文](README.zh-CN.md)
+
 LabMon is a lightweight, read-only web dashboard for shared GPU servers in research labs. It helps a team answer the everyday questions before starting a run: which GPU is free, who is using the busy cards, what command is running, and whether recent training logs are still moving.
 
 ![LabMon dashboard](img/dashboard.png)
