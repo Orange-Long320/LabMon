@@ -907,6 +907,73 @@ tr.is-hot {
   vector-effect: non-scaling-stroke;
 }
 
+.trend-hover-point {
+  outline: none;
+}
+
+.trend-hit-area {
+  fill: transparent;
+  cursor: crosshair;
+  pointer-events: all;
+}
+
+.chart-hover-line,
+.trend-hover-dot,
+.trend-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.chart-hover-line {
+  stroke: var(--line-strong);
+  stroke-dasharray: 4 5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-hover-dot {
+  stroke: var(--bg);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-tooltip rect {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-tooltip text {
+  fill: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trend-tooltip text:first-of-type {
+  fill: var(--muted);
+  font-weight: 500;
+}
+
+.trend-hover-point:hover .chart-hover-line,
+.trend-hover-point:hover .trend-hover-dot,
+.trend-hover-point:hover .trend-tooltip,
+.trend-hover-point:focus .chart-hover-line,
+.trend-hover-point:focus .trend-hover-dot,
+.trend-hover-point:focus .trend-tooltip,
+.trend-hover-point.is-hovered .chart-hover-line,
+.trend-hover-point.is-hovered .trend-hover-dot,
+.trend-hover-point.is-hovered .trend-tooltip,
+.trend-hit-area:hover ~ .chart-hover-line,
+.trend-hit-area:hover ~ .trend-hover-dot,
+.trend-hit-area:hover ~ .trend-tooltip,
+.trend-hit-area:focus ~ .chart-hover-line,
+.trend-hit-area:focus ~ .trend-hover-dot,
+.trend-hit-area:focus ~ .trend-tooltip {
+  opacity: 1;
+}
+
 .series-0 {
   stroke: var(--ink);
   background: var(--ink);
@@ -960,6 +1027,31 @@ tr.is-hot {
 }
 
 .trend-dot.series-memory {
+  fill: var(--blue);
+}
+
+.trend-hover-dot.series-0 {
+  fill: var(--ink);
+}
+
+.trend-hover-dot.series-1 {
+  fill: var(--blue);
+}
+
+.trend-hover-dot.series-2 {
+  fill: var(--green);
+}
+
+.trend-hover-dot.series-3 {
+  fill: var(--amber);
+}
+
+.trend-hover-dot.series-4,
+.trend-hover-dot.series-host {
+  fill: var(--red);
+}
+
+.trend-hover-dot.series-memory {
   fill: var(--blue);
 }
 

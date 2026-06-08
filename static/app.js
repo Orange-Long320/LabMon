@@ -654,6 +654,16 @@ function buildGpuTrendSeries(samples, gpus, metric) {
       const gpu = (sample.gpus || []).find((item) => String(item.index) === String(gpuIndex));
       return gpu ? numericValue(gpu[metric]) : null;
     });
+    const tooltipValues = samples.map((sample) => {
+      const gpu = (sample.gpus || []).find((item) => String(item.index) === String(gpuIndex));
+      if (!gpu) return null;
+      const value = numericValue(gpu[metric]);
+      if (value === null) return null;
+      if (metric === "memory_percent") {
+        return `${formatMib(gpu.memory_used_mib)} / ${formatMib(gpu.memory_total_mib)} (${Math.round(value)}%)`;
+      }
+      return `${Math.round(value)}%`;
+    });
     const latest = latestGpuSample(samples, gpuIndex);
     const latestLabel =
       metric === "memory_percent" && latest
@@ -662,6 +672,7 @@ function buildGpuTrendSeries(samples, gpus, metric) {
     return {
       label: `GPU ${gpuIndex}`,
       values,
+      tooltipValues,
       latest: latestLabel,
       className: `series-${seriesIndex % 5}`,
     };
@@ -670,10 +681,12 @@ function buildGpuTrendSeries(samples, gpus, metric) {
 
 function buildHostTrendSeries(samples, metric, label, className) {
   const values = samples.map((sample) => numericValue(sample.host?.[metric]));
+  const tooltipValues = values.map((value) => (value === null ? null : `${Math.round(value)}%`));
   return [
     {
       label,
       values,
+      tooltipValues,
       latest: `${Math.round(latestFinite(values) || 0)}%`,
       className,
     },
@@ -801,6 +814,40 @@ function renderLineChart(title, series, samples) {
       return "";
     })
     .join("");
+  const hoverPoints = series
+    .map((item) =>
+      item.values
+        .map((rawValue, index) => {
+          const value = numericValue(rawValue);
+          if (value === null) return "";
+          const x = xFor(index);
+          const y = yFor(value);
+          const tooltipWidth = 212;
+          const tooltipHeight = 62;
+          const tooltipX = x > width - padding.right - tooltipWidth - 10 ? x - tooltipWidth - 10 : x + 10;
+          const tooltipY = Math.max(padding.top + 4, Math.min(height - padding.bottom - tooltipHeight, y - tooltipHeight - 10));
+          const timeLabel = formatChartTime(samples[index]?.generated_at);
+          const detail = item.tooltipValues?.[index] || `${Math.round(value)}%`;
+          const titleText = `${timeLabel} ${item.label} ${detail}`;
+          return `
+            <g class="trend-hover-point">
+              <circle class="trend-hit-area" tabindex="0" aria-label="${escapeHtml(titleText)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="10">
+                <title>${escapeHtml(titleText)}</title>
+              </circle>
+              <line class="chart-hover-line" x1="${x.toFixed(1)}" y1="${padding.top}" x2="${x.toFixed(1)}" y2="${height - padding.bottom}"></line>
+              <circle class="trend-hover-dot ${escapeHtml(item.className)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5"></circle>
+              <g class="trend-tooltip" transform="translate(${tooltipX.toFixed(1)} ${tooltipY.toFixed(1)})">
+                <rect width="${tooltipWidth}" height="${tooltipHeight}" rx="6"></rect>
+                <text x="10" y="18">${escapeHtml(timeLabel)}</text>
+                <text x="10" y="37">${escapeHtml(item.label)}</text>
+                <text x="10" y="54">${escapeHtml(detail)}</text>
+              </g>
+            </g>
+          `;
+        })
+        .join(""),
+    )
+    .join("");
   const startTime = formatChartTime(samples[0]?.generated_at);
   const endTime = formatChartTime(samples[samples.length - 1]?.generated_at);
   return `
@@ -809,6 +856,7 @@ function renderLineChart(title, series, samples) {
       ${ticks}
       ${paths}
       ${dots}
+      ${hoverPoints}
       <text class="chart-time-label" x="${padding.left}" y="${height - 9}">${escapeHtml(startTime)}</text>
       <text class="chart-time-label" x="${width - padding.right}" y="${height - 9}" text-anchor="end">${escapeHtml(endTime)}</text>
     </svg>
@@ -949,6 +997,21 @@ async function openLog(logId) {
   }
 }
 
+function setTrendHover(point) {
+  document.querySelectorAll(".trend-hover-point.is-hovered").forEach((item) => {
+    if (item !== point) item.classList.remove("is-hovered");
+  });
+  if (point) point.classList.add("is-hovered");
+}
+
+function clearTrendHover(point) {
+  if (point) {
+    point.classList.remove("is-hovered");
+    return;
+  }
+  document.querySelectorAll(".trend-hover-point.is-hovered").forEach((item) => item.classList.remove("is-hovered"));
+}
+
 $("#refresh-button").addEventListener("click", loadSnapshot);
 $("#logout-button").addEventListener("click", logout);
 $("#close-dialog").addEventListener("click", () => $("#log-dialog").close());
@@ -982,6 +1045,30 @@ $("#app-view").addEventListener("click", (event) => {
   if (logButton) {
     openLog(logButton.dataset.logId);
   }
+});
+$("#app-view").addEventListener("pointerover", (event) => {
+  const hitArea = event.target.closest(".trend-hit-area");
+  if (hitArea) setTrendHover(hitArea.closest(".trend-hover-point"));
+});
+$("#app-view").addEventListener("pointermove", (event) => {
+  const hitArea = event.target.closest(".trend-hit-area");
+  if (hitArea) setTrendHover(hitArea.closest(".trend-hover-point"));
+});
+$("#app-view").addEventListener("mousemove", (event) => {
+  const hitArea = event.target.closest(".trend-hit-area");
+  if (hitArea) setTrendHover(hitArea.closest(".trend-hover-point"));
+});
+$("#app-view").addEventListener("pointerout", (event) => {
+  const point = event.target.closest(".trend-hover-point");
+  if (point && event.relatedTarget && point.contains(event.relatedTarget)) return;
+  clearTrendHover(point);
+});
+$("#app-view").addEventListener("focusin", (event) => {
+  const hitArea = event.target.closest(".trend-hit-area");
+  if (hitArea) setTrendHover(hitArea.closest(".trend-hover-point"));
+});
+$("#app-view").addEventListener("focusout", (event) => {
+  clearTrendHover(event.target.closest(".trend-hover-point"));
 });
 
 loadSession();
