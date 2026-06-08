@@ -76,6 +76,7 @@ pre {
   gap: 18px;
   padding: 20px clamp(16px, 4vw, 30px);
   background: var(--bg);
+  min-width: 0;
 }
 
 .topnav,
@@ -92,6 +93,15 @@ pre {
   color: var(--ink);
   font-size: 0.88rem;
   flex-wrap: wrap;
+}
+
+#host-label {
+  display: inline-block;
+  max-width: min(320px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .nav-link {
@@ -152,6 +162,16 @@ pre {
   margin-bottom: 28px;
 }
 
+.hero-grid > *,
+.overview-layout > *,
+.view-shell > *,
+.logs-layout > *,
+.host-grid > *,
+.detail-header > *,
+.detail-grid > * {
+  min-width: 0;
+}
+
 .ascii {
   color: var(--ink);
   font-size: clamp(0.52rem, 1vw, 0.88rem);
@@ -185,6 +205,7 @@ pre {
 
 .command code,
 .truncate {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -740,6 +761,11 @@ tr.is-hot {
   .topbar__meta {
     justify-content: flex-start;
     gap: 10px;
+    width: 100%;
+  }
+
+  #host-label {
+    max-width: 100%;
   }
 
   .ascii {
@@ -762,17 +788,40 @@ tr.is-hot {
   }
 
   .rank-col {
-    width: 44px;
+    width: 10%;
   }
 
   .gpu-col {
-    width: 240px;
+    width: 44%;
   }
 
   .owner-col,
-  .num-col,
+  table th:nth-child(5),
+  table td:nth-child(5) {
+    display: none;
+  }
+
+  .num-col {
+    width: 14%;
+  }
+
+  table th:nth-child(6),
+  table td:nth-child(6) {
+    width: 16%;
+  }
+
   .action-col {
-    width: 92px;
+    width: 16%;
+  }
+
+  .badge {
+    padding: 2px 6px;
+    font-size: 0.70rem;
+  }
+
+  .ghost-button {
+    padding: 4px 7px;
+    font-size: 0.74rem;
   }
 
   .big-number {
