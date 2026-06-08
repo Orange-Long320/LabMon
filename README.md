@@ -48,9 +48,61 @@ LABMON_AUTH_SECRET="$(openssl rand -hex 32)" \
 uv run uvicorn labmon.app:app --reload --host 127.0.0.1 --port 8765
 ```
 
-## Server Deployment
+## One-Command Server Install
 
-On a Linux GPU server with NVIDIA drivers installed:
+Prerequisites: Linux, NVIDIA drivers, `git`, `uv`, and a user with `sudo` access.
+
+For a first install, clone LabMon into `/opt/labmon`:
+
+```bash
+sudo git clone https://github.com/Orange-Long320/LabMon.git /opt/labmon && cd /opt/labmon && sudo env LABMON_ADMIN_USER=alice bash deploy/install.sh
+```
+
+Expanded form:
+
+```bash
+sudo git clone https://github.com/Orange-Long320/LabMon.git /opt/labmon
+cd /opt/labmon
+sudo env LABMON_ADMIN_USER=alice bash deploy/install.sh
+```
+
+Replace `alice` with the first LabMon account you want to create. The script will prompt for that user's password.
+
+The installer will:
+
+- run `uv sync --no-dev`
+- create `/etc/labmon/labmon.env` with a random `LABMON_AUTH_SECRET`
+- install and start `/etc/systemd/system/labmon.service`
+- enable boot startup and automatic restart through `systemd`
+
+If users already exist, run the installer without `LABMON_ADMIN_USER`:
+
+```bash
+cd /opt/labmon
+sudo bash deploy/install.sh
+```
+
+Status and logs:
+
+```bash
+sudo systemctl status labmon
+sudo journalctl -u labmon -f
+```
+
+`systemd` detaches LabMon from your SSH session, starts it after reboot, and restarts it if the process exits unexpectedly. It cannot prevent an administrator from stopping the service, a power loss, or a root-level forced kill, but it does solve SSH disconnects killing the server process.
+
+To change the port, log roots, history window, or HTTPS cookie setting, edit:
+
+```bash
+sudo nano /etc/labmon/labmon.env
+sudo systemctl restart labmon
+```
+
+If the port may be reachable outside your trusted network, bind LabMon to `127.0.0.1` and access it through an SSH tunnel, a VPN, or a reverse proxy with HTTPS. When serving over HTTPS, set `LABMON_AUTH_COOKIE_SECURE=1`.
+
+## Temporary Debug Run
+
+For quick debugging only:
 
 ```bash
 uv sync --no-dev
@@ -61,28 +113,19 @@ LABMON_AUTH_SECRET="$(openssl rand -hex 32)" \
 uv run uvicorn labmon.app:app --host 0.0.0.0 --port 8765
 ```
 
-The command above is useful for temporary debugging. For long-running deployment, use `systemd` instead of running `uvicorn` in the foreground over SSH.
-
-The included `deploy/labmon.service` is a systemd template. Edit `WorkingDirectory`, `LABMON_USERS_FILE`, `LABMON_AUTH_SECRET`, and `ExecStart` for your server path, then install it:
-
-```bash
-sudo cp deploy/labmon.service /etc/systemd/system/labmon.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now labmon
-sudo systemctl status labmon
-```
-
-Follow logs:
-
-```bash
-sudo journalctl -u labmon -f
-```
-
-`systemd` detaches LabMon from your SSH session, starts it after reboot, and restarts it if the process exits unexpectedly. It cannot prevent an administrator from stopping the service, a power loss, or a root-level forced kill, but it does solve SSH disconnects killing the server process.
-
-If the port may be reachable outside your trusted network, bind LabMon to `127.0.0.1` and access it through an SSH tunnel, a VPN, or a reverse proxy with HTTPS. When serving over HTTPS, set `LABMON_AUTH_COOKIE_SECURE=1`.
+This runs in your SSH foreground session and may exit when SSH disconnects.
 
 ## User Management
+
+After server deployment, use the installed Python and deployed users file:
+
+```bash
+sudo env LABMON_USERS_FILE=/opt/labmon/labmon-users.json /opt/labmon/.venv/bin/python /opt/labmon/scripts/manage_users.py add bob
+sudo env LABMON_USERS_FILE=/opt/labmon/labmon-users.json /opt/labmon/.venv/bin/python /opt/labmon/scripts/manage_users.py list
+sudo env LABMON_USERS_FILE=/opt/labmon/labmon-users.json /opt/labmon/.venv/bin/python /opt/labmon/scripts/manage_users.py remove bob
+```
+
+For local development:
 
 ```bash
 uv run python scripts/manage_users.py add alice

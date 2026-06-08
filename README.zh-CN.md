@@ -48,9 +48,61 @@ LABMON_AUTH_SECRET="$(openssl rand -hex 32)" \
 uv run uvicorn labmon.app:app --reload --host 127.0.0.1 --port 8765
 ```
 
-## 服务器部署
+## 服务器一键安装
 
-在已经安装 NVIDIA 驱动的 Linux GPU 服务器上：
+前提：服务器是 Linux，已安装 NVIDIA 驱动、`git`、`uv`，并且当前用户有 `sudo` 权限。
+
+第一次安装推荐直接 clone 到 `/opt/labmon`：
+
+```bash
+sudo git clone https://github.com/Orange-Long320/LabMon.git /opt/labmon && cd /opt/labmon && sudo env LABMON_ADMIN_USER=alice bash deploy/install.sh
+```
+
+分步写法：
+
+```bash
+sudo git clone https://github.com/Orange-Long320/LabMon.git /opt/labmon
+cd /opt/labmon
+sudo env LABMON_ADMIN_USER=alice bash deploy/install.sh
+```
+
+把 `alice` 换成第一个课题组账号。脚本会提示你输入这个账号的密码。
+
+安装脚本会自动完成：
+
+- 执行 `uv sync --no-dev`
+- 生成 `/etc/labmon/labmon.env`，包括随机 `LABMON_AUTH_SECRET`
+- 安装并启动 `/etc/systemd/system/labmon.service`
+- 设置 `systemd` 开机自启和异常重启
+
+如果已经创建过账号，也可以不带 `LABMON_ADMIN_USER`：
+
+```bash
+cd /opt/labmon
+sudo bash deploy/install.sh
+```
+
+状态和日志：
+
+```bash
+sudo systemctl status labmon
+sudo journalctl -u labmon -f
+```
+
+`systemd` 会让 LabMon 脱离 SSH 会话运行，服务器重启后自动启动，进程异常退出后自动重启。它不能阻止管理员手动停止服务、服务器断电或 root 用户强制 kill，但能解决 SSH 断开导致服务退出的问题。
+
+需要改端口、日志目录、历史记录窗口或 HTTPS cookie 时，编辑：
+
+```bash
+sudo nano /etc/labmon/labmon.env
+sudo systemctl restart labmon
+```
+
+如果端口可能被可信网络之外访问，建议绑定到 `127.0.0.1`，再通过 SSH tunnel、VPN 或带 HTTPS 的反向代理访问。通过 HTTPS 访问时，设置 `LABMON_AUTH_COOKIE_SECURE=1`。
+
+## 临时调试
+
+如果只想临时跑一下，不要用于长期服务：
 
 ```bash
 uv sync --no-dev
@@ -61,28 +113,19 @@ LABMON_AUTH_SECRET="$(openssl rand -hex 32)" \
 uv run uvicorn labmon.app:app --host 0.0.0.0 --port 8765
 ```
 
-上面的命令适合临时调试，不适合长期运行。生产部署建议交给 `systemd`，不要在 SSH 前台直接跑 `uvicorn`。
-
-仓库里的 `deploy/labmon.service` 是 systemd 模板。安装前需要把 `WorkingDirectory`、`LABMON_USERS_FILE`、`LABMON_AUTH_SECRET` 和 `ExecStart` 改成服务器上的实际路径，然后执行：
-
-```bash
-sudo cp deploy/labmon.service /etc/systemd/system/labmon.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now labmon
-sudo systemctl status labmon
-```
-
-查看日志：
-
-```bash
-sudo journalctl -u labmon -f
-```
-
-`systemd` 会让 LabMon 脱离 SSH 会话运行，服务器重启后自动启动，进程异常退出后自动重启。它不能阻止管理员手动停止服务、服务器断电或 root 用户强制 kill，但能解决 SSH 断开导致服务退出的问题。
-
-如果端口可能被可信网络之外访问，建议绑定到 `127.0.0.1`，再通过 SSH tunnel、VPN 或带 HTTPS 的反向代理访问。通过 HTTPS 访问时，设置 `LABMON_AUTH_COOKIE_SECURE=1`。
+这个命令在 SSH 前台运行，断开 SSH 后可能退出。
 
 ## 用户管理
+
+服务器部署后建议使用安装目录里的 Python 和用户文件路径：
+
+```bash
+sudo env LABMON_USERS_FILE=/opt/labmon/labmon-users.json /opt/labmon/.venv/bin/python /opt/labmon/scripts/manage_users.py add bob
+sudo env LABMON_USERS_FILE=/opt/labmon/labmon-users.json /opt/labmon/.venv/bin/python /opt/labmon/scripts/manage_users.py list
+sudo env LABMON_USERS_FILE=/opt/labmon/labmon-users.json /opt/labmon/.venv/bin/python /opt/labmon/scripts/manage_users.py remove bob
+```
+
+本机开发时也可以用：
 
 ```bash
 uv run python scripts/manage_users.py add alice
