@@ -91,6 +91,46 @@ sudo journalctl -u labmon -f
 
 `systemd` detaches LabMon from your SSH session, starts it after reboot, and restarts it if the process exits unexpectedly. It cannot prevent an administrator from stopping the service, a power loss, or a root-level forced kill, but it does solve SSH disconnects killing the server process.
 
+## Campus Intranet Access
+
+The default installer makes LabMon listen on `0.0.0.0:8765`. That means the server accepts connections on all network interfaces, but it does not guarantee that the whole campus network can route to the machine-room subnet.
+
+First check the listener on the server:
+
+```bash
+sudo ss -lntp | grep 8765
+```
+
+If you see `0.0.0.0:8765`, LabMon is listening on the server network interfaces. Then test from a computer on the campus intranet:
+
+```bash
+curl http://<server-ip>:8765/api/me
+```
+
+If it returns JSON, open `http://<server-ip>:8765` in a browser. In this case, restrict the firewall rule to the campus CIDR instead of exposing the port broadly:
+
+```bash
+sudo ufw allow from <campus-cidr> to any port 8765 proto tcp
+```
+
+Or with firewalld:
+
+```bash
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="<campus-cidr>" port port="8765" protocol="tcp" accept'
+sudo firewall-cmd --reload
+```
+
+If the machine-room LAN can access LabMon but the wider campus intranet cannot, the machine-room subnet is probably blocked by routing or firewall policy. Ask the network administrator to allow:
+
+```text
+source: campus intranet CIDR
+destination: GPU server IP
+port: TCP 8765
+purpose: read-only LabMon GPU monitoring dashboard for the research group
+```
+
+If direct access to the GPU server cannot be allowed, bind LabMon to `127.0.0.1` and put an Nginx reverse proxy on a campus-reachable gateway or jump host. Users will open the gateway address, and the gateway will forward traffic to the GPU server.
+
 To change the port, log roots, history window, or HTTPS cookie setting, edit:
 
 ```bash
@@ -98,7 +138,7 @@ sudo nano /etc/labmon/labmon.env
 sudo systemctl restart labmon
 ```
 
-If the port may be reachable outside your trusted network, bind LabMon to `127.0.0.1` and access it through an SSH tunnel, a VPN, or a reverse proxy with HTTPS. When serving over HTTPS, set `LABMON_AUTH_COOKIE_SECURE=1`.
+If the port may be reachable outside the campus intranet, bind LabMon to `127.0.0.1` and access it through an SSH tunnel, a VPN, or a reverse proxy with HTTPS. When serving over HTTPS, set `LABMON_AUTH_COOKIE_SECURE=1`.
 
 ## Temporary Debug Run
 

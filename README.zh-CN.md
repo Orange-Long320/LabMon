@@ -91,6 +91,46 @@ sudo journalctl -u labmon -f
 
 `systemd` 会让 LabMon 脱离 SSH 会话运行，服务器重启后自动启动，进程异常退出后自动重启。它不能阻止管理员手动停止服务、服务器断电或 root 用户强制 kill，但能解决 SSH 断开导致服务退出的问题。
 
+## 校园网内访问
+
+默认安装会让 LabMon 监听 `0.0.0.0:8765`。这表示服务器所有网卡都接受连接，但它不等于“整个校园网一定能访问”。校园网能不能访问，取决于学校网络是否允许从校园网路由到机房服务器网段。
+
+先在服务器上确认监听地址：
+
+```bash
+sudo ss -lntp | grep 8765
+```
+
+如果看到 `0.0.0.0:8765`，说明 LabMon 已经对服务器网卡开放。然后找一台校园网内的电脑测试：
+
+```bash
+curl http://<服务器IP>:8765/api/me
+```
+
+如果能返回 JSON，就可以通过 `http://<服务器IP>:8765` 访问。此时建议只对校园网网段放行端口，不要开放到公网。常见防火墙示例：
+
+```bash
+sudo ufw allow from <校园网CIDR> to any port 8765 proto tcp
+```
+
+或 firewalld：
+
+```bash
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="<校园网CIDR>" port port="8765" protocol="tcp" accept'
+sudo firewall-cmd --reload
+```
+
+如果校园网电脑访问不了，但机房局域网能访问，说明机房网段和校园网之间有路由或防火墙隔离。这种情况需要找网管放行：
+
+```text
+源地址：校园网内网网段
+目标地址：GPU 服务器 IP
+目标端口：TCP 8765
+用途：课题组 LabMon 只读 GPU 监控面板
+```
+
+如果学校不允许直接放行机房服务器端口，可以把 LabMon 绑定到 `127.0.0.1`，再在一个校园网可访问的跳板机或机房网关上用 Nginx 做反向代理。这个方案的入口地址会是跳板机地址，后端再转发到 GPU 服务器。
+
 需要改端口、日志目录、历史记录窗口或 HTTPS cookie 时，编辑：
 
 ```bash
@@ -98,7 +138,7 @@ sudo nano /etc/labmon/labmon.env
 sudo systemctl restart labmon
 ```
 
-如果端口可能被可信网络之外访问，建议绑定到 `127.0.0.1`，再通过 SSH tunnel、VPN 或带 HTTPS 的反向代理访问。通过 HTTPS 访问时，设置 `LABMON_AUTH_COOKIE_SECURE=1`。
+如果端口可能被校园网之外访问，建议绑定到 `127.0.0.1`，再通过 SSH tunnel、VPN 或带 HTTPS 的反向代理访问。通过 HTTPS 访问时，设置 `LABMON_AUTH_COOKIE_SECURE=1`。
 
 ## 临时调试
 
