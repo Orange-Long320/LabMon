@@ -95,6 +95,14 @@ pre {
   flex-wrap: wrap;
 }
 
+.session-label {
+  color: var(--muted);
+}
+
+.topbar-logout {
+  min-height: 34px;
+}
+
 #host-label {
   display: inline-block;
   max-width: min(320px, 42vw);

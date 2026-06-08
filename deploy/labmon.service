@@ -6,6 +6,9 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/labmon
 Environment=LABMON_LOG_ROOTS=/home/*/runs,/home/*/logs,/data/runs,/data/logs
+Environment=LABMON_AUTH=1
+Environment=LABMON_USERS_FILE=/opt/labmon/labmon-users.json
+Environment=LABMON_AUTH_SECRET=change-this-with-openssl-rand-hex-32
 ExecStart=/opt/labmon/.venv/bin/uvicorn labmon.app:app --host 0.0.0.0 --port 8765
 Restart=on-failure
 RestartSec=3

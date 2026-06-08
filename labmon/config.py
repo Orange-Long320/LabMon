@@ -33,6 +33,11 @@ class Settings:
         self.demo = env_bool("LABMON_DEMO", default=False)
         self.host_label = os.getenv("LABMON_HOST_LABEL") or None
         self.refresh_seconds = env_float("LABMON_REFRESH_SECONDS", default=1, minimum=0.25)
+        self.auth_enabled = env_bool("LABMON_AUTH", default=False)
+        self.auth_users_file = os.getenv("LABMON_USERS_FILE") or str(PROJECT_ROOT / "labmon-users.json")
+        self.auth_secret = os.getenv("LABMON_AUTH_SECRET") or ("labmon-demo-secret-change-me" if self.demo else "")
+        self.auth_session_hours = env_float("LABMON_AUTH_SESSION_HOURS", default=168, minimum=1)
+        self.auth_cookie_secure = env_bool("LABMON_AUTH_COOKIE_SECURE", default=False)
         roots = os.getenv("LABMON_LOG_ROOTS")
         if roots:
             self.log_roots = split_roots(roots)

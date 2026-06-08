@@ -5,6 +5,7 @@ const state = {
   view: "overview",
   selectedGpuIndex: null,
   selectedLogId: null,
+  session: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -164,7 +165,9 @@ async function fetchJson(url, options = {}) {
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       const message = payload.detail?.message || payload.message || `HTTP ${response.status}`;
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
     return await response.json();
   } catch (error) {
@@ -185,6 +188,10 @@ async function loadSnapshot() {
     renderSnapshot(state.snapshot);
     scheduleRefresh(state.snapshot.host?.refresh_seconds || 1);
   } catch (error) {
+    if (error.status === 401) {
+      redirectToLogin();
+      return;
+    }
     renderWarnings([error.message]);
   } finally {
     state.loading = false;
@@ -195,6 +202,43 @@ function scheduleRefresh(seconds) {
   if (state.refreshTimer) window.clearInterval(state.refreshTimer);
   const interval = Math.max(0.25, Number(seconds) || 1) * 1000;
   state.refreshTimer = window.setInterval(loadSnapshot, interval);
+}
+
+function redirectToLogin() {
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+}
+
+async function loadSession() {
+  try {
+    state.session = await fetchJson("/api/me");
+    renderSession();
+  } catch (error) {
+    if (error.status === 401) {
+      redirectToLogin();
+      return;
+    }
+    state.session = { auth_enabled: false, username: null };
+    renderSession();
+  }
+}
+
+function renderSession() {
+  const userLabel = $("#user-label");
+  const logoutButton = $("#logout-button");
+  const enabled = Boolean(state.session?.auth_enabled);
+  userLabel.hidden = !enabled;
+  logoutButton.hidden = !enabled;
+  userLabel.textContent = enabled ? `user ${state.session.username}` : "";
+}
+
+async function logout() {
+  await fetch("/api/logout", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  }).catch(() => {});
+  window.location.assign("/login");
 }
 
 function setView(view) {
@@ -645,12 +689,17 @@ async function openLog(logId) {
     $("#dialog-path").textContent = payload.entry.path;
     $("#log-content").textContent = payload.lines.join("\n");
   } catch (error) {
+    if (error.status === 401) {
+      redirectToLogin();
+      return;
+    }
     $("#dialog-title").textContent = "日志读取失败";
     $("#log-content").textContent = error.message;
   }
 }
 
 $("#refresh-button").addEventListener("click", loadSnapshot);
+$("#logout-button").addEventListener("click", logout);
 $("#close-dialog").addEventListener("click", () => $("#log-dialog").close());
 document.querySelectorAll("[data-view]").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
@@ -684,4 +733,5 @@ $("#app-view").addEventListener("click", (event) => {
   }
 });
 
+loadSession();
 loadSnapshot();

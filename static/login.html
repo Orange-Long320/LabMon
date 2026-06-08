@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LabMon Login</title>
+    <style>
+      :root {
+        --bg: oklch(1 0 0);
+        --paper: oklch(0.982 0 0);
+        --ink: oklch(0.13 0 0);
+        --muted: oklch(0.43 0 0);
+        --line: oklch(0.3 0 0);
+        --faint: oklch(0.88 0 0);
+        --blue: oklch(0.43 0.08 215);
+        --blue-soft: oklch(0.925 0.03 215);
+        --red: oklch(0.56 0.175 25);
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        line-height: 1.45;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        padding: clamp(18px, 4vw, 36px);
+        background: var(--bg);
+      }
+
+      main {
+        display: grid;
+        align-content: center;
+        gap: 22px;
+        width: min(100%, 560px);
+        margin: 0 auto;
+      }
+
+      h1,
+      p,
+      pre {
+        margin: 0;
+      }
+
+      .ascii {
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 0.68rem;
+        line-height: 1.05;
+        white-space: pre;
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .panel-head h1 {
+        font-size: 1rem;
+        line-height: 1.2;
+      }
+
+      .badge {
+        min-height: 23px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 8px;
+        background: var(--bg);
+        font-size: 0.76rem;
+        font-weight: 750;
+      }
+
+      form {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+      }
+
+      label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      input {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.94rem;
+      }
+
+      input:focus {
+        outline: 3px solid var(--blue-soft);
+        outline-offset: 2px;
+      }
+
+      button {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--ink);
+        color: var(--bg);
+        font: inherit;
+        font-weight: 750;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: var(--blue);
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      .message {
+        min-height: 1.4em;
+        color: var(--red);
+        font-size: 0.82rem;
+      }
+
+      .note {
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      @media (max-width: 520px) {
+        .ascii {
+          font-size: 0.47rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <pre class="ascii">██╗      █████╗ ██████╗ ███╗   ███╗ ██████╗ ███╗   ██╗
+██║     ██╔══██╗██╔══██╗████╗ ████║██╔═══██╗████╗  ██║
+██║     ███████║██████╔╝██╔████╔██║██║   ██║██╔██╗ ██║
+██║     ██╔══██║██╔══██╗██║╚██╔╝██║██║   ██║██║╚██╗██║
+███████╗██║  ██║██████╔╝██║ ╚═╝ ██║╚██████╔╝██║ ╚████║
+╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝</pre>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h1>LabMon login</h1>
+          <span class="badge">group only</span>
+        </div>
+        <form id="login-form">
+          <label>
+            username
+            <input id="username" name="username" autocomplete="username" required />
+          </label>
+          <label>
+            password
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button id="login-button" type="submit">login</button>
+          <p id="message" class="message" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <p class="note">只读监控入口。账号由课题组管理员在服务器本地创建。</p>
+    </main>
+
+    <script>
+      const form = document.querySelector("#login-form");
+      const button = document.querySelector("#login-button");
+      const message = document.querySelector("#message");
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get("next") || "/";
+      const target = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        message.textContent = "";
+        button.disabled = true;
+        try {
+          const response = await fetch("/api/login", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              username: document.querySelector("#username").value,
+              password: document.querySelector("#password").value,
+            }),
+          });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.detail?.message || payload.message || "登录失败");
+          }
+          window.location.assign(target);
+        } catch (error) {
+          message.textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
