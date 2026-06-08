@@ -1,0 +1,14 @@
+[Unit]
+Description=LabMon GPU monitor
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/labmon
+Environment=LABMON_LOG_ROOTS=/home/*/runs,/home/*/logs,/data/runs,/data/logs
+ExecStart=/opt/labmon/.venv/bin/uvicorn labmon.app:app --host 0.0.0.0 --port 8765
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

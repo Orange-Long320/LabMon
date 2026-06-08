@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LabMon Terminal Concepts</title>
+    <style>
+      :root {
+        --ink: oklch(0.940 0.008 205);
+        --muted: oklch(0.690 0.020 205);
+        --dim: oklch(0.500 0.025 205);
+        --bg: oklch(0.110 0.010 215);
+        --panel: oklch(0.155 0.014 215);
+        --panel-2: oklch(0.205 0.018 215);
+        --line: oklch(0.315 0.026 215);
+        --teal: oklch(0.720 0.115 190);
+        --green: oklch(0.760 0.150 150);
+        --amber: oklch(0.780 0.155 80);
+        --red: oklch(0.670 0.175 25);
+        --blue: oklch(0.710 0.100 230);
+        --surface-light: oklch(0.940 0.006 210);
+        --ink-light: oklch(0.180 0.018 215);
+        --muted-light: oklch(0.430 0.022 215);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: oklch(0.070 0.006 215);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        scrollbar-width: none;
+      }
+
+      body::-webkit-scrollbar {
+        display: none;
+      }
+
+      .concept {
+        width: 1440px;
+        height: 900px;
+        margin: 0 auto 36px;
+        padding: 28px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      .prompt {
+        color: var(--teal);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 22px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 28px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 16px;
+        letter-spacing: 0;
+      }
+
+      .meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 10px;
+        color: var(--ink);
+        background: var(--panel);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .bar {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: oklch(0.260 0.020 215);
+      }
+
+      .fill {
+        width: var(--value);
+        height: 100%;
+        border-radius: inherit;
+        background: var(--teal);
+      }
+
+      .fill.hot {
+        background: var(--amber);
+      }
+
+      .fill.free {
+        background: var(--green);
+      }
+
+      .grid-a {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 392px;
+        gap: 18px;
+        height: 790px;
+      }
+
+      .gpu-stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .gpu-row {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 132px;
+        gap: 16px;
+        align-items: center;
+        padding: 18px;
+      }
+
+      .slot {
+        display: grid;
+        place-items: center;
+        height: 82px;
+        border-radius: 8px;
+        color: var(--bg);
+        background: var(--teal);
+        font-size: 34px;
+        font-weight: 850;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .slot.free {
+        background: var(--green);
+      }
+
+      .slot.hot {
+        background: var(--amber);
+      }
+
+      .gpu-main {
+        min-width: 0;
+      }
+
+      .gpu-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 10px;
+      }
+
+      .gpu-title strong {
+        font-size: 19px;
+      }
+
+      .gpu-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .gpu-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .gpu-metrics strong {
+        display: block;
+        margin-top: 2px;
+        color: var(--ink);
+        font-size: 20px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .right-column {
+        display: grid;
+        gap: 14px;
+        grid-template-rows: 225px 1fr;
+        min-height: 0;
+      }
+
+      .host-panel {
+        padding: 16px;
+      }
+
+      .host-panel h2,
+      .log-panel h2 {
+        margin-bottom: 14px;
+      }
+
+      .meter {
+        display: grid;
+        gap: 7px;
+        margin-top: 12px;
+      }
+
+      .meter-row {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .meter-row strong {
+        color: var(--ink);
+      }
+
+      .log-panel {
+        min-height: 0;
+        padding: 16px;
+      }
+
+      .terminal {
+        min-height: 0;
+        border-radius: 8px;
+        background: oklch(0.090 0.010 215);
+        color: oklch(0.860 0.020 160);
+        padding: 14px;
+        font-size: 13px;
+        line-height: 1.65;
+        overflow: hidden;
+      }
+
+      .terminal .muted-line {
+        color: var(--dim);
+      }
+
+      .grid-b {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 18px;
+        height: 790px;
+      }
+
+      .nav-rail {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        padding: 18px;
+      }
+
+      .nav-rail h1 {
+        margin-top: 10px;
+        font-size: 26px;
+      }
+
+      .summary-tile {
+        margin-top: 22px;
+        padding: 14px;
+        border-radius: 8px;
+        background: var(--panel-2);
+      }
+
+      .summary-tile span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .summary-tile strong {
+        display: block;
+        margin-top: 8px;
+        color: var(--ink);
+        font-size: 38px;
+        line-height: 1;
+      }
+
+      .slot-board {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .slot-card {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 380px;
+        padding: 22px;
+      }
+
+      .slot-card .slot-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+      }
+
+      .slot-card .big {
+        margin-top: 28px;
+        font-size: 78px;
+        line-height: 1;
+        font-weight: 850;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .slot-card .task {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+      .task strong {
+        color: var(--ink);
+      }
+
+      .slot-foot {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .slot-foot span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .slot-foot strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--ink);
+        font-size: 18px;
+      }
+
+      .concept-c {
+        background: var(--surface-light);
+        color: var(--ink-light);
+      }
+
+      .concept-c .prompt {
+        color: oklch(0.390 0.080 200);
+      }
+
+      .concept-c .meta,
+      .concept-c .gpu-sub,
+      .concept-c .meter-row,
+      .concept-c .workbench-sub,
+      .concept-c .log-note {
+        color: var(--muted-light);
+      }
+
+      .concept-c .slot-foot span {
+        color: var(--muted-light);
+      }
+
+      .concept-c .slot-foot strong {
+        color: var(--ink-light);
+      }
+
+      .grid-c {
+        display: grid;
+        grid-template-columns: 330px minmax(0, 1fr) 360px;
+        gap: 18px;
+        height: 790px;
+      }
+
+      .light-panel {
+        border: 1px solid oklch(0.830 0.010 210);
+        border-radius: 8px;
+        background: oklch(0.985 0.002 210);
+      }
+
+      .lane-list {
+        padding: 16px;
+      }
+
+      .lane {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 0;
+        border-top: 1px solid oklch(0.865 0.010 210);
+      }
+
+      .lane:first-child {
+        border-top: 0;
+      }
+
+      .lane-num {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 7px;
+        background: var(--ink-light);
+        color: white;
+        font-weight: 850;
+      }
+
+      .lane strong {
+        display: block;
+      }
+
+      .lane p {
+        color: var(--muted-light);
+        font-size: 13px;
+      }
+
+      .workbench {
+        padding: 24px;
+      }
+
+      .selected-gpu {
+        display: grid;
+        grid-template-columns: 170px 1fr;
+        gap: 24px;
+        align-items: center;
+        margin-top: 34px;
+      }
+
+      .dial {
+        display: grid;
+        place-items: center;
+        width: 170px;
+        height: 170px;
+        border: 1px solid oklch(0.760 0.030 200);
+        border-radius: 50%;
+        background: oklch(0.930 0.025 200);
+      }
+
+      .dial strong {
+        font-size: 54px;
+        line-height: 1;
+      }
+
+      .dial span {
+        color: var(--muted-light);
+        font-size: 13px;
+      }
+
+      .process-large {
+        margin-top: 28px;
+        border-top: 1px solid oklch(0.830 0.010 210);
+      }
+
+      .process-large div {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr) 110px;
+        gap: 12px;
+        padding: 16px 0;
+        border-bottom: 1px solid oklch(0.880 0.010 210);
+      }
+
+      .log-workbench {
+        padding: 18px;
+        background: oklch(0.135 0.014 215);
+        color: var(--ink);
+      }
+
+      .log-workbench .terminal {
+        height: 670px;
+        margin-top: 14px;
+      }
+
+      .log-note {
+        margin-top: 8px;
+        font-size: 13px;
+      }
+
+      @media (max-width: 900px) {
+        .concept {
+          width: 100%;
+          height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section id="concept-a" class="concept">
+      <div class="top">
+        <div>
+          <p class="prompt">labmon@orangedeair:~$ watch gpu</p>
+          <h1>Console Deck</h1>
+        </div>
+        <div class="meta">
+          <span>OrangedeMacBook-Air.local</span>
+          <span class="pill">demo</span>
+          <span class="mono">16:01:28</span>
+        </div>
+      </div>
+
+      <div class="grid-a">
+        <div class="gpu-stack">
+          <article class="panel gpu-row">
+            <div class="slot">0</div>
+            <div class="gpu-main">
+              <div class="gpu-title">
+                <strong>NVIDIA GeForce RTX 3090</strong>
+                <span class="pill">orangelong</span>
+              </div>
+              <div class="bar"><div class="fill" style="--value: 78%"></div></div>
+              <p class="gpu-sub mono">python train_rl.py --env FrankaPick --gpu 0 --seed 7</p>
+            </div>
+            <div class="gpu-metrics">
+              <span>util<strong>78%</strong></span>
+              <span>mem<strong>18.5G</strong></span>
+              <span>run<strong>2h</strong></span>
+            </div>
+          </article>
+
+          <article class="panel gpu-row">
+            <div class="slot free">1</div>
+            <div class="gpu-main">
+              <div class="gpu-title">
+                <strong>NVIDIA GeForce RTX 3090</strong>
+                <span class="pill">无进程</span>
+              </div>
+              <div class="bar"><div class="fill free" style="--value: 6%"></div></div>
+              <p class="gpu-sub mono">compute empty, memory cache 2.4 GiB</p>
+            </div>
+            <div class="gpu-metrics">
+              <span>util<strong>6%</strong></span>
+              <span>mem<strong>2.4G</strong></span>
+              <span>temp<strong>43C</strong></span>
+            </div>
+          </article>
+
+          <article class="panel gpu-row">
+            <div class="slot hot">2</div>
+            <div class="gpu-main">
+              <div class="gpu-title">
+                <strong>NVIDIA GeForce RTX 3090</strong>
+                <span class="pill">li, wang</span>
+              </div>
+              <div class="bar"><div class="fill hot" style="--value: 96%"></div></div>
+              <p class="gpu-sub mono">python scripts/pretrain.py --config configs/vla.yaml</p>
+            </div>
+            <div class="gpu-metrics">
+              <span>util<strong>96%</strong></span>
+              <span>mem<strong>22.6G</strong></span>
+              <span>run<strong>5h</strong></span>
+            </div>
+          </article>
+
+          <article class="panel gpu-row">
+            <div class="slot">3</div>
+            <div class="gpu-main">
+              <div class="gpu-title">
+                <strong>NVIDIA GeForce RTX 3090</strong>
+                <span class="pill">chen</span>
+              </div>
+              <div class="bar"><div class="fill" style="--value: 42%"></div></div>
+              <p class="gpu-sub mono">python launch.py --model diffusion_policy --batch-size 64</p>
+            </div>
+            <div class="gpu-metrics">
+              <span>util<strong>42%</strong></span>
+              <span>mem<strong>10.7G</strong></span>
+              <span>run<strong>1h</strong></span>
+            </div>
+          </article>
+        </div>
+
+        <aside class="right-column">
+          <section class="panel host-panel">
+            <h2>host</h2>
+            <div class="meter">
+              <div class="meter-row"><span>cpu</span><strong>25%</strong></div>
+              <div class="bar"><div class="fill" style="--value: 25%"></div></div>
+            </div>
+            <div class="meter">
+              <div class="meter-row"><span>memory</span><strong>10.9 / 24 GiB</strong></div>
+              <div class="bar"><div class="fill" style="--value: 71%"></div></div>
+            </div>
+            <div class="meter">
+              <div class="meter-row"><span>disk</span><strong>12.1 / 460 GiB</strong></div>
+              <div class="bar"><div class="fill free" style="--value: 8%"></div></div>
+            </div>
+          </section>
+
+          <section class="panel log-panel">
+            <h2>tail eval_policy.log</h2>
+            <div class="terminal mono">
+              <div class="muted-line">$ tail -n 5 sample_logs/eval_policy.log</div>
+              <div>[eval] episode=18 reward=42.5 step=180 success=0.61 eta=11m</div>
+              <div>[eval] episode=19 reward=44.1 step=190 success=0.63 eta=9m</div>
+              <div>[eval] episode=20 reward=48.7 step=200 success=0.66 eta=7m</div>
+              <br />
+              <div class="muted-line">$ parsed</div>
+              <div>step 200</div>
+              <div>episode 20</div>
+              <div>reward 48.7</div>
+              <div>eta 7m</div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <section id="concept-b" class="concept">
+      <div class="top">
+        <div>
+          <p class="prompt">labmon@server:~$ slots --human</p>
+          <h1>Slot Board</h1>
+        </div>
+        <div class="meta">
+          <span class="pill">1 free</span>
+          <span class="pill">3 active</span>
+          <span class="pill">0 alerts</span>
+        </div>
+      </div>
+
+      <div class="grid-b">
+        <aside class="panel nav-rail">
+          <div>
+            <p class="prompt">/dev/nvidia*</p>
+            <h1>先看卡，再看细节</h1>
+            <div class="summary-tile">
+              <span>recommended slot</span>
+              <strong>GPU 1</strong>
+            </div>
+            <div class="summary-tile">
+              <span>reason</span>
+              <strong>无进程</strong>
+            </div>
+          </div>
+          <div></div>
+          <p class="mono" style="color: var(--muted); font-size: 13px">refresh 5s, read only, no kill action</p>
+        </aside>
+
+        <main class="slot-board">
+          <article class="panel slot-card">
+            <div class="slot-head"><span>GPU 0</span><span>orangelong</span></div>
+            <div>
+              <div class="big">78%</div>
+              <p class="task"><strong>train_rl.py</strong><br />FrankaPick, seed 7, 11.3 GiB</p>
+            </div>
+            <div class="slot-foot">
+              <div><span>mem</span><strong>18.5G</strong></div>
+              <div><span>temp</span><strong>64C</strong></div>
+              <div><span>time</span><strong>2h</strong></div>
+            </div>
+          </article>
+
+          <article class="panel slot-card">
+            <div class="slot-head"><span>GPU 1</span><span style="color: var(--green)">free</span></div>
+            <div>
+              <div class="big" style="color: var(--green)">6%</div>
+              <p class="task"><strong>no compute process</strong><br />2.4 GiB cache, safe candidate</p>
+            </div>
+            <div class="slot-foot">
+              <div><span>mem</span><strong>2.4G</strong></div>
+              <div><span>temp</span><strong>43C</strong></div>
+              <div><span>power</span><strong>86W</strong></div>
+            </div>
+          </article>
+
+          <article class="panel slot-card">
+            <div class="slot-head"><span>GPU 2</span><span style="color: var(--amber)">hot load</span></div>
+            <div>
+              <div class="big" style="color: var(--amber)">96%</div>
+              <p class="task"><strong>pretrain.py</strong><br />li and wang, VLA config, 21.4 GiB</p>
+            </div>
+            <div class="slot-foot">
+              <div><span>mem</span><strong>22.6G</strong></div>
+              <div><span>temp</span><strong>72C</strong></div>
+              <div><span>time</span><strong>5h</strong></div>
+            </div>
+          </article>
+
+          <article class="panel slot-card">
+            <div class="slot-head"><span>GPU 3</span><span>chen</span></div>
+            <div>
+              <div class="big">42%</div>
+              <p class="task"><strong>diffusion_policy</strong><br />batch size 64, 8.5 GiB</p>
+            </div>
+            <div class="slot-foot">
+              <div><span>mem</span><strong>10.7G</strong></div>
+              <div><span>temp</span><strong>58C</strong></div>
+              <div><span>time</span><strong>1h</strong></div>
+            </div>
+          </article>
+        </main>
+      </div>
+    </section>
+
+    <section id="concept-c" class="concept concept-c">
+      <div class="top">
+        <div>
+          <p class="prompt">labmon inspect gpu:2</p>
+          <h1>Log Workbench</h1>
+        </div>
+        <div class="meta">
+          <span>server mode preview</span>
+          <span class="pill">read only</span>
+          <span class="mono">16:01:28</span>
+        </div>
+      </div>
+
+      <div class="grid-c">
+        <aside class="light-panel lane-list">
+          <h2>GPU lanes</h2>
+          <div class="lane">
+            <span class="lane-num">0</span>
+            <div><strong>orangelong</strong><p>78%, train_rl.py</p></div>
+            <span class="pill">active</span>
+          </div>
+          <div class="lane">
+            <span class="lane-num">1</span>
+            <div><strong>无进程</strong><p>6%, cache 2.4G</p></div>
+            <span class="pill">pick</span>
+          </div>
+          <div class="lane">
+            <span class="lane-num">2</span>
+            <div><strong>li, wang</strong><p>96%, pretrain.py</p></div>
+            <span class="pill">focus</span>
+          </div>
+          <div class="lane">
+            <span class="lane-num">3</span>
+            <div><strong>chen</strong><p>42%, launch.py</p></div>
+            <span class="pill">active</span>
+          </div>
+        </aside>
+
+        <main class="light-panel workbench">
+          <p class="prompt">selected / GPU 2</p>
+          <h1>谁在跑，跑到哪了</h1>
+          <p class="workbench-sub">把默认视图从四张完整报表改成一个选中对象。其余 GPU 只保留判断是否可用的摘要。</p>
+
+          <div class="selected-gpu">
+            <div class="dial">
+              <div><strong>96%</strong><br /><span>utilization</span></div>
+            </div>
+            <div>
+              <h2>NVIDIA GeForce RTX 3090</h2>
+              <p class="workbench-sub mono">UUID GPU-DEMO-2</p>
+              <div class="slot-foot">
+                <div><span>memory</span><strong>22.6G</strong></div>
+                <div><span>temp</span><strong>72C</strong></div>
+                <div><span>power</span><strong>337W</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="process-large">
+            <div><strong>li</strong><span class="mono">python scripts/pretrain.py --config configs/vla.yaml</span><strong>18.1G</strong></div>
+            <div><strong>wang</strong><span class="mono">python eval_policy.py --checkpoint runs/latest.pt</span><strong>3.2G</strong></div>
+          </div>
+        </main>
+
+        <aside class="light-panel log-workbench">
+          <p class="prompt">tail / active log</p>
+          <h2>eval_policy.log</h2>
+          <p class="log-note">step 200, episode 20, reward 48.7, eta 7m</p>
+          <div class="terminal mono">
+            <div class="muted-line">$ tail -f eval_policy.log</div>
+            <br />
+            <div>[eval] episode=18 reward=42.5 step=180 success=0.61 eta=11m</div>
+            <div>[eval] episode=19 reward=44.1 step=190 success=0.63 eta=9m</div>
+            <div>[eval] episode=20 reward=48.7 step=200 success=0.66 eta=7m</div>
+            <br />
+            <div class="muted-line">$ status</div>
+            <div>training still moving</div>
+            <div>last update 06/08 15:52</div>
+            <div>owner wang</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </body>
+</html>

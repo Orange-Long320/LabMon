@@ -1,0 +1,5 @@
+[2026-06-08 14:10:02] epoch=1 step=250 loss=1.842 reward=-18.5 lr=3e-4 eta=02:40:12
+[2026-06-08 14:12:31] epoch=1 step=500 loss=1.537 reward=-12.2 lr=3e-4 eta=02:26:18
+[2026-06-08 14:15:07] epoch=2 step=750 loss=1.284 reward=-7.9 lr=3e-4 eta=02:12:44
+[2026-06-08 14:17:43] epoch=2 step=1000 loss=1.091 reward=-3.4 lr=3e-4 eta=01:58:09
+[2026-06-08 14:20:19] epoch=3 step=1250 loss=0.942 reward=1.8 lr=2.8e-4 eta=01:44:50
