@@ -261,7 +261,6 @@ function renderOverview(snapshot) {
     <section class="hero-grid overview-hero">
       <div>
         <pre class="ascii">${escapeHtml(APP_ASCII)}</pre>
-        <p class="tagline">共享 GPU 服务器的白色命令行面板。首页按物理 GPU 顺序显示，点哪张卡，上方就查看哪张卡。</p>
         <div class="command">
           <code>$ labmon watch --slots ordered --select gpu:${selected ? escapeHtml(selected.index) : "0"}</code>
           <button class="solid-button" type="button" data-action="refresh">refresh</button>
