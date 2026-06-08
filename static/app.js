@@ -609,7 +609,7 @@ function renderHostView(snapshot) {
           <h2>server status</h2>
           <span class="badge">${escapeHtml(host.mode)}</span>
         </div>
-        <pre class="terminal">$ labmon status
+        <pre class="server-status-output">$ labmon status
 hostname ${escapeHtml(host.hostname)}
 platform ${escapeHtml(host.platform)}
 refresh ${escapeHtml(host.refresh_seconds)}s

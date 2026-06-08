@@ -560,6 +560,17 @@ tr.is-hot {
   max-height: 260px;
 }
 
+.server-status-output {
+  margin: 0;
+  padding: 14px 16px 18px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.65;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
 .gpu-page {
   display: grid;
   gap: 20px;
