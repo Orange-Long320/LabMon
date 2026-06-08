@@ -1,4 +1,5 @@
 import getpass
+import math
 import os
 import platform
 import random
@@ -135,6 +136,13 @@ def _demo_process(pid, username, command, gpu_memory_mib, runtime_seconds):
     }
 
 
+def _demo_wave(base, amplitude, phase, offset, minimum=0, maximum=None):
+    value = base + math.sin(phase + offset) * amplitude
+    if maximum is not None:
+        value = min(maximum, value)
+    return max(minimum, int(round(value)))
+
+
 def demo_gpus():
     users = [getpass.getuser(), "li", "wang", "chen"]
     commands = [
@@ -143,11 +151,40 @@ def demo_gpus():
         "python eval_policy.py --checkpoint runs/rl_3090/latest.pt",
         "python launch.py --model diffusion_policy --batch-size 64",
     ]
+    phase = time.time() / 5
     profiles = [
-        (0, 78, 18940, 64, 312, [_demo_process(12841, users[0], commands[0], 11620, 7320)]),
-        (1, 6, 2440, 43, 86, []),
-        (2, 96, 23170, 72, 337, [_demo_process(22110, users[1], commands[1], 18120, 18540), _demo_process(22187, users[2], commands[2], 3280, 8800)]),
-        (3, 42, 10920, 58, 214, [_demo_process(30218, users[3], commands[3], 8750, 4210)]),
+        (
+            0,
+            _demo_wave(78, 6, phase, 0.0, maximum=98),
+            _demo_wave(18940, 520, phase, 0.8, maximum=24576),
+            _demo_wave(64, 3, phase, 1.6, maximum=80),
+            _demo_wave(312, 14, phase, 2.4, maximum=350),
+            [_demo_process(12841, users[0], commands[0], 11620, 7320)],
+        ),
+        (
+            1,
+            _demo_wave(6, 4, phase, 1.1, maximum=16),
+            _demo_wave(2440, 180, phase, 2.2, maximum=24576),
+            _demo_wave(43, 2, phase, 3.3, maximum=60),
+            _demo_wave(86, 10, phase, 4.4, maximum=160),
+            [],
+        ),
+        (
+            2,
+            _demo_wave(96, 3, phase, 2.0, maximum=100),
+            _demo_wave(23170, 420, phase, 2.9, maximum=24576),
+            _demo_wave(72, 3, phase, 3.8, maximum=83),
+            _demo_wave(337, 9, phase, 4.7, maximum=350),
+            [_demo_process(22110, users[1], commands[1], 18120, 18540), _demo_process(22187, users[2], commands[2], 3280, 8800)],
+        ),
+        (
+            3,
+            _demo_wave(42, 7, phase, 3.0, maximum=75),
+            _demo_wave(10920, 640, phase, 3.7, maximum=24576),
+            _demo_wave(58, 3, phase, 4.4, maximum=78),
+            _demo_wave(214, 18, phase, 5.1, maximum=320),
+            [_demo_process(30218, users[3], commands[3], 8750, 4210)],
+        ),
     ]
     gpus = []
     for index, util, used, temp, power, processes in profiles:

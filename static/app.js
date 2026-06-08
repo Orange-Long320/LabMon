@@ -183,7 +183,7 @@ async function loadSnapshot() {
   try {
     state.snapshot = await fetchJson("/api/snapshot");
     renderSnapshot(state.snapshot);
-    scheduleRefresh(state.snapshot.host?.refresh_seconds || 5);
+    scheduleRefresh(state.snapshot.host?.refresh_seconds || 1);
   } catch (error) {
     renderWarnings([error.message]);
   } finally {
@@ -193,7 +193,7 @@ async function loadSnapshot() {
 
 function scheduleRefresh(seconds) {
   if (state.refreshTimer) window.clearInterval(state.refreshTimer);
-  const interval = Math.max(2, Number(seconds) || 5) * 1000;
+  const interval = Math.max(0.25, Number(seconds) || 1) * 1000;
   state.refreshTimer = window.setInterval(loadSnapshot, interval);
 }
 

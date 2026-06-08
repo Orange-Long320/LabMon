@@ -32,7 +32,7 @@ uv run uvicorn labmon.app:app --host 0.0.0.0 --port 8765
 - `LABMON_DEMO=1`：启用本机 demo，GPU/进程使用模拟四卡 3090 数据。
 - `LABMON_LOG_ROOTS`：逗号分隔的日志目录或 glob。
 - `LABMON_HOST_LABEL`：覆盖页面顶部显示的主机名。
-- `LABMON_REFRESH_SECONDS`：前端刷新间隔，默认 5 秒。
+- `LABMON_REFRESH_SECONDS`：前端刷新间隔，默认 1 秒；可设为 `0.5` 做更高频轮询。
 
 ## systemd 示例
 
